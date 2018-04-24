@@ -1,4 +1,5 @@
-games.csv.gz
+games.csv
 ratings.csv
 ratings.db
 .ipynb_checkpoints/
+*.png
