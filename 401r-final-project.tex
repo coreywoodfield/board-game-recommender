@@ -1,0 +1,74 @@
+\documentclass[11pt]{article}
+\usepackage[hmargin=1in,vmargin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{graphicx}
+\usepackage{placeins}
+\usepackage{amsfonts}
+\usepackage{mathtools}
+\usepackage{hyperref}
+\providecommand\iff{\DOTSB\;\Longleftrightarrow\;}
+\providecommand\implies{\DOTSB\;\Longrightarrow\;}
+\providecommand\impliedby{\DOTSB\;\Longleftarrow\;}
+\DeclarePairedDelimiter\abs{\lvert}{\rvert}
+\DeclarePairedDelimiter\norm{\lVert}{\rVert}
+\makeatletter
+\let\oldabs\abs
+\def\abs{\@ifstar{\oldabs}{\oldabs*}}
+\let\oldnorm\norm
+\def\norm{\@ifstar{\oldnorm}{\oldnorm*}}
+\makeatother
+\newcommand*{\Value}{\frac{1}{2}x^2}%
+\begin{document}
+\def\bs{\textbackslash}
+\setlength\parindent{0pt}
+\def\reals{\hbox{\rm I\kern-.18em R}}
+\def\complexes{\hbox{\rm C\kern-.43em
+\vrule depth 0ex height 1.4ex width .05em\kern.41em}}
+\def\field{\hbox{\rm I\kern-.18em F}} %symbol for field
+\title{CS 401R Final Project\\
+Board Game Recommender System}
+\author{Corey Woodfield}
+\setcounter{page}{1}
+\vspace{1ex}
+\maketitle
+
+\section{Discussion of the dataset}
+To build my board game recommender system, I used publicly available board game rating data taken from \url{boardgamegeek.com}.
+\subsection{Where did the data come from?}
+The data I used was scraped from boardgamegeek, both by scraping html from their site and querying the API. I wanted to get rating data for board games and users, so I first scraped the html of boardgamegeek to get all the board games that had been rated by more than 100 users. This resulted in 10,700 board games, with a total of 12,352,214 ratings. The most-rated game had been rated by 76,576 users, so the total number of users was at least that much, but was likely considerably higher. This was a ton of data (the movie dataset had 10,197 movies, but only 855,598 total ratings, and only 2,113 users), and would require at least 819 million entries in the predictions matrix. Because there was so much data, I decided to limit the games I included to games that had been rated by less than 5,000 people. This resulted in still having 10,229 games, but it reduced the total number of ratings considerably, to only 6,295,320, about half of the original number. I did this to make collecting the rating information faster, as the boardgamegeek API doesn't handle load very well, and collecting the rating information is easily the slowest part of the whole process. In total, 209,771 users had rated at least one of these games, so the matrix factorization method would need a matrix with 2 billion entries. In order to trim that down a bit, I dropped all the users who had rated less than 10 of the games in question, and ended up with 90,377 users, which would require only 924 million entries in the matrix. In retrospect, the rating data for games with more than 5,000 ratings would've taken about the same amount of time to gather, but would've resulted in a much smaller dataset (only about 500 board games) that would've been easier to work with. In deciding what board games to use, my main goal was to reduce the total number of ratings, and so I removed the games with the most ratings, but it would've been wiser to try and reduce both the total number of ratings (to reduce the time required to gather the data) as well as the size of the matrix I would need to use for matrix factorization.
+\subsection{Who cares?}
+I think most importantly, I care. I like to play board games, and with so many board games available, and more being released every year, it's impossible to play all of them. I obviously want to spend my time dedicated to board games efficiently, playing games I enjoy the most more often than games that aren't really my style. I can spend time researching games, and trying new games to see whether I like them or not, but having a system to recommend me board games would help ensure that my time exploring new games is likely to yield good results. But more than just me, there are a lot of people who play board games. We are in a golden age of board games, and more and more people are getting into the hobby, and more and more games are being created every year. Boardgamegeek has about 1.5 million registered users and gets over 4 million unique visitors a month. Despite all this, there is no one company that has a large market share of board game profits (like Netflix in the realm of movies and TV shows), so there is no large company that is motivated to build a recommender system to be able to increase its profits.
+
+\section{A discussion of the problem}
+This is a regression problem, attempting to guess how much a given user would like a given board game, on a continuous scale from 0 to 10. Since a user can put in any value between 0 and 10, and they're not restricted to just the integers, or the integers and the halfway points, this problem seems even more suited for regression than the movie recommender system.
+
+My solution to this problem will use supervised learning. I have a set of ratings that I do know. I will try to create derivative matrices that get ratings close to those I know independently, and will update my matrices based on how close it is to the correct answer.
+
+I have background knowledge both in recommender systems, from class and the lab, and in recommending board games, as I spend a lot of time playing and researching board games.
+
+All of the board game recommenders I could find, that had some explanation of how they worked, took a nearest neighbor approach. They took what I liked, found other people who liked those things, and told me I might like other games that those people liked. They recommended games that I think I'd probably like, or that I know I like, but these games often didn't have much in common with the games I said I liked, and were mostly just taken from games that are very generally popular, and I think a more effective recommender could be built.
+
+\section{Exploration of the dataset}
+I already touched on my exploration of the data in section 1, in my discussion of where I got the data, and the decisions I made in what data to use, so here I will focus on patterns in the data. The average rating was 6.82, with a standard deviation of 1.59. The users had rated on average 68 games, and the games were rated on average by 582 users. A couple users had rated almost 4,000 games, while most had rated between 10 and 1,000. The games seemed to follow a natural log decay curve in terms of how many times they were rated; there were many more games that had been rated between 100 and 200 times than there were games that had been rated between 4,000 and 5,000 times.
+\begin{center}
+\includegraphics[width=\linewidth]{ratings.png}
+\includegraphics[width=5.5in]{users.png}
+\includegraphics[width=5.5in]{games.png}
+\end{center}
+
+\section{Description of approach}
+I used a matrix factorization model, which as far as I can tell was popularized during the Netflix competition. It relies on the idea that the matrix of ratings, with users on one axis and games on another, can be decomposed into the multiplication of two matrices, one matrix representing users and their tastes, and another representing games, the mechanics involved, the complexity, and other ways they appeal to different to different users. Since most of the data in the rating matrix is missing, you have to construct the user and game matrix as best as you can to fit the data that is there. For my inference algorithm I used stochastic gradient descent, which samples ratings that are in the rating matrix, and adjusts the relevant user and game vectors to get closer to producing the rating in question. It does this a lot of times and eventually makes the predictions pretty good. I partitioned my data into a training and test set simply by shuffling the original data and then taking the first ten percent as the test set and the rest as the training set.
+
+\section{How did my approach work}
+\subsection{Results}
+My approach had an RMSE of 1.256 on the test set, and 1.468 on the training set. Since the ratings were on a scale of 10, rather than 5 as the movie data was, I'm pretty happy with this result.
+\begin{center}
+\includegraphics[width=\linewidth]{OLD_RMSE2.png}
+\end{center}
+I don't think my approach overfit the data, both because of the regularization factor, and as one can see in the above graph, the test set RMSE decreased at a similar rate to the train set RMSE.
+\subsection{Iteration of design}
+I did stick with my original algorithm, because it worked pretty well. I had been planning on adding consideration of bias to make it more accurate, the reason I didn't do that was because my computer struggled to handle even the basic stochastic gradient descent, as there was just so much data. If I had a computer with more RAM I would want to look into adding that, to make the approach more effective.
+\subsection{Did I solve the problem?}
+Yes! I was able to use the recommender system to find some board games that I might like, based on my taste in other games. I have now done some research, and the suggested games seem promising. It would be easy to find recommendations for others as well.
+\end{document}

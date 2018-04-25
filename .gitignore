@@ -1,5 +1,3 @@
-games.csv
-ratings.csv
-ratings.db
 .ipynb_checkpoints/
-*.png
+graphics/
+data/
